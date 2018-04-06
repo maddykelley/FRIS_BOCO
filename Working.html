@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<!--begin html code--> 
+<html>
+<!--The <head> element is a container for metadata (data about data) and is placed between the <html> tag and the <body> tag.--> 
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1, maximum-scale=1,user-scalable=no">
+    <title>Manage results from multiple queries</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/3.23/dijit/themes/tundra/tundra.css">
+    <link rel="stylesheet" href="https://js.arcgis.com/3.23/esri/css/esri.css">
+    <!--inserted css file-->  
+	<style>
+      html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+      #map{ margin: 0; padding: 0; }
+      #controls {
+        position: absolute;
+        height: 200px;
+        font-family: arial;
+        bottom: 10px;
+        margin: 5px;
+        padding: 5px;
+        z-index: 40;
+        background: #fff;
+        color: #444;
+        width: 450px;
+        left: 10px;
+        -moz-box-shadow: 0 0 5px #888;
+        -webkit-box-shadow: 0 0 5px #888;
+        box-shadow: 0 0 5px #888;
+      }
+      h3 { margin: 0 0 5px 0; border-bottom: 1px solid #444; }
+      .label { display: inline-block; width: 140px; }
+    </style>
+<!--Java script version I am referencing. -->  
+    <script src="https://js.arcgis.com/3.23/"></script>
+	<!--connecting to the API-->
+	<!--ArcGIS API is built on dojo which include function (require) similar to script in HTML -->  
+    <script>
+//COME BACK
+//libaries- functions i will use come from/reference something is each of these
+      require([
+
+//
+// Promises are the programming concept that allow easier programming of non-blocking asynchronous code. /all takes multiple promises and returns a new promise that is fulfilled when all promises have been fulfilled
+// dojo/_base/connect contains functions for connecting to methods, events and topics. The functionality in this module is deprecated
+//esri/color module inherits all attributes from dojo/_base/Color to provide functions for setting colors. 
+// dojo/_base/array provides enhancements to native Array functions which may not be available.
+// dojo/dom module defines the core Dojo DOM API
+// dojo/on is a general-purpose event handler module for DOM nodes and other event emitting objects, providing normalized event listening and event dispatching functionality.
+//esri/config The default values for all JS API configuration options. 
+
+//
+//
+//
+//
+//
+//
+//BorderContainer is a dijit/layout/LayoutContainer with the added ability for the user to drag splitters between panes, thus resizing them.
+//ContentPane is the most basic layout tile
+
+        "dojo/parser", "dojo/promise/all", "dojo/_base/connect", 
+        "esri/Color", "dojo/_base/array", "dojo/dom","dojo/on",
+        "esri/config", "esri/map", "esri/geometry/Extent",
+        "esri/symbols/SimpleFillSymbol", "esri/layers/FeatureLayer",
+        "esri/tasks/query", "esri/tasks/QueryTask",
+        "dijit/layout/BorderContainer", "dijit/layout/ContentPane",
+        "dojo/domReady!"
+      ], function(
+	  //these are parameters! not functions.
+        parser, all, connect, 
+        Color, arrayUtils, dom,on, 
+        esriConfig, Map, Extent,
+        SimpleFillSymbol, FeatureLayer,
+        Query, QueryTask
+      ) {
+        // create layout dijits
+        parser.parse();
+		//from dojo - returns a combined object that is an array combined with a promise.
+             var map = new Map("map", {
+      basemap: "topo",
+      center: [-105.2705, 40.0150],
+      zoom: 13
+    });
+
+    /****************************************************************
+     * Add feature layer - A FeatureLayer at minimum should point
+     * to a URL to a feature service or point to a feature collection 
+     * object.
+     ***************************************************************/
+//define layers
+    var featureSFHA = new FeatureLayer("https://services1.arcgis.com/44C95LOqZjbh8Row/arcgis/rest/services/SFHA/FeatureServer/0");
+
+    map.addLayer(featureSFHA);
+
+    var featureLayer = new FeatureLayer("https://services1.arcgis.com/44C95LOqZjbh8Row/ArcGIS/rest/services/BuildingRelateDepth/FeatureServer/0");
+    map.addLayer(featureLayer);    
+
+//define actions for map
+map.on("click", executeQueries);
+
+on(dom.byId("getPercentButton"), "click", executeGetPercentile);
+
+        function executeGetPercentile () {
+          var queryTask = new QueryTask("https://services1.arcgis.com/44C95LOqZjbh8Row/arcgis/rest/services/BuildingRelateDepth/FeatureServer/1");
+
+        var query = new Query();
+        query.returnGeometry = false;
+        query.outFields = ["Standard_Deviation_of_Damage"];
+        
+        e = document.getElementById("buildingtype");
+	
+	var selectbldtype = e.options[e.selectedIndex].value;
+	alert (selectbldtype);
+	
+	var depthvalue = document.getElementById("depth").innerText;
+	//need to use the real value
+alert (depthvalue);
+        
+          query.where="Depth = "+(depthvalue) +"AND Structure='"+selectbldtype+"'";
+          queryTask.execute(query, showResults);
+        }
+
+        function showResults (results) {
+          var resultItems = [];
+		  
+          var resultCount = results.features.length;
+          for (var i = 0; i < resultCount; i++) {
+            var featureAttributes = results.features[i].attributes;
+            alert (featureAttributes.Standard_Deviation_of_Damage );
+              dom.byId("percent").innerHTML =  featureAttributes.Standard_Deviation_of_Damage;
+            
+          }
+        
+        }
+//define action for button
+on(dom.byId("CalculateButton"), "click", executeCalculation);
+ 
+ //get the information from the table content
+ function executeCalculation()
+ {
+   var value = parseFloat( document.getElementById("value").innerText);
+   var percent = parseFloat(document.getElementById("percent").innerText);
+   alert (value);
+   alert (percent);
+   alert (value*percent);
+ }
+
+        function executeQueries(e) {
+        qtBuildings = new QueryTask("https://services1.arcgis.com/44C95LOqZjbh8Row/ArcGIS/rest/services/BuildingRelateDepth/FeatureServer/0");
+qBuildings = new Query();
+
+ qBuildings.returnGeometry = true;
+    qBuildings.outFields = ["*"];
+          var  qGeom, point, pxWidth, padding;
+          point = e.mapPoint;
+          pxWidth = map.extent.getWidth() / map.width;
+          padding = 3 * pxWidth;
+          
+          qGeom = new Extent({
+            "xmin": point.x - padding,
+            "ymin": point.y - padding,
+            "xmax": point.x + padding,
+            "ymax": point.y + padding,
+            "spatialReference": point.spatialReference
+          });
+
+          // use the extent for the query geometry
+         qBuildings.geometry = qGeom;
+          
+          qtBuildings.execute(qBuildings,handleQueryResults );
+        }
+
+
+        function handleQueryResults(results) {
+          map.graphics.clear();
+          console.log("queries finished: ", results);
+           var resultCount = results.features.length;
+            for (var i = 0; i < resultCount; i++) {
+            var featureAttributes = results.features[i].attributes;
+           
+           // Adding this breaks flow. Where is the correct location?
+           // var depth = featureAttributes["Depth"];            
+          //  var value = featureAttributes["BLGAssess"];
+
+// This is for results of table layer query
+          //  var percent = featureAttributes["Mean_of_Damage"];
+            
+          
+            var feat = results.features[i];
+           feat.setSymbol(
+              new SimpleFillSymbol()
+                .setColor(new Color([255, 0, 255, 0.5]))
+                .setOutline(null)
+            );
+            map.graphics.add(feat);
+            alert ("Structure Selected. Now select structure type to find damage percent and calculate cost.");
+            //replace the html content --JL
+             dom.byId("value").innerHTML = featureAttributes.BLGAssess;
+             dom.byId("depth").innerHTML =  featureAttributes.Depth;
+            // alert (featureAttributes.Depth);  -- depth info is null
+             
+             //full table structure using innerHTML
+          }
+       
+        }
+      });
+    </script>
+ </head>
+  <body class="tundra">           
+<!--dojo toolkit referencing require above - beign parsed into a decorated html. Digit is graphics library for dojo--> 
+     <div data-dojo-type="dijit.layout.BorderContainer" 
+         data-dojo-props="design:'headline',gutters:false" 
+         style="width: 100%; height: 100%; margin: 0;">
+      <div id="map" 
+           data-dojo-type="dijit.layout.ContentPane" 
+           data-dojo-props="region:'center'">
+        <div id="controls">
+          <h3>Building Info</h3>
+<!--Below is the table where selected structures attritube and cost percentages are reported. INcluded are two function buttoms--> 
+          <table border=".5">
+            <tbody>
+            <tr style="height: 23px;">
+            <td style="height: 23px;">&nbsp;Structure Type</td>
+            <td style="height: 23px;"><select id="buildingtype">
+            <option value="One Story, With Basement">One Story With Basement</option>
+            <option value="One Story-No Basement">One Story-No Basement</option>
+            <option value="Two or More Stories With Basement">Two or More Stories With Basement</option>
+            <option value="Two or More Stories-No Basement">Two or More Stories-No Basement</option>
+            <option value="Split-Level With Basement">Split-Level With Basement</option>
+            <option value="Split-Level-No Basement">Split-Level-No Basement</option>
+            </select></td>
+            </tr>
+            <tr style="height: 23px;">
+            <td style="height: 23px;">&nbsp;Assessed Building Value</td>
+            <td style="height: 23px;" contenteditable="true" id="value"></td>
+            </tr>
+            <tr style="height: 23px;">
+            <td style="height: 23px;">&nbsp;1% AEP Flood Depth</td>
+            <td style="height: 23px;" contenteditable="true" id="depth"></td>
+            </tr>
+            <tr style="height: 23px;">
+            <td style="height: 23px;">&nbsp;<button id="getPercentButton" >Get Percentile</button></td>
+            <td style="height: 23px;" id="percent">      </td>
+            <tr style="height: 23px;">
+            <td style="height: 23px;">&nbsp;<button id="CalculateButton" >Calculate Cost Estimate</button></td>
+            <td style="height: 23px;" id="percent">      </td>
+            </tr>
+            </tbody>
+          </table>
+          </div>         
+
+      </div>
+    </div>
+
+  </body>
+
+</html>
